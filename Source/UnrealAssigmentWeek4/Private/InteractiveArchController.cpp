@@ -92,21 +92,41 @@ void AInteractiveArchController::LeftClickProcessor()
 			FHitResult HitResult;
 			FCollisionQueryParams QueryParams;
 			QueryParams.bTraceComplex = true;
-			QueryParams.AddIgnoredActor(GetPawn());
+			//QueryParams.AddIgnoredActor(GetPawn());
 
 			if (GetWorld()->LineTraceSingleByChannel(HitResult, WorldLocation, TraceEnd, ECC_Visibility, QueryParams)) {
 				if (HitResult.GetActor()) {
 					LastHitLocation = HitResult.Location;
-					if (!bIsVissible)
-					{
-						SelectionWidgetInstance->MeshBox->SetVisibility(ESlateVisibility::Visible);
-						
-					}
-
 					if (SelectionWidgetInstance && !SelectionWidgetInstance->IsInViewport()) {
 						GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Emerald, FString::Printf(TEXT("Clicked")));
 						SelectionWidgetInstance->AddToViewport();
 					}
+
+
+					AArchMeshActor* ArchActor = Cast<AArchMeshActor>(HitResult.GetActor());
+
+					if (ArchActor) {
+						
+						bIsMeshPresent = true;
+						StaticMeshActor = ArchActor;
+						LastHitLocation = StaticMeshActor->GetActorLocation();
+						GEngine->AddOnScreenDebugMessage(-1, 2, FColor::Blue, "Actor");
+						SelectionWidgetInstance->MeshBox->SetVisibility(ESlateVisibility::Visible);
+						SelectionWidgetInstance->MaterialBox->SetVisibility(ESlateVisibility::Visible);
+						SelectionWidgetInstance->TextureBox->SetVisibility(ESlateVisibility::Visible);
+					}
+					else
+					{
+						bIsMeshPresent = false;
+					}
+					if (!bIsVissible)
+					{
+						SelectionWidgetInstance->MeshBox->SetVisibility(ESlateVisibility::Visible);
+						bIsVissible = true;
+						
+					}
+
+					
 					//OnFLoorDetected();
 				}
 			}
@@ -119,6 +139,7 @@ void AInteractiveArchController::HideVisibility() {
 	SelectionWidgetInstance->MeshBox->SetVisibility(ESlateVisibility::Hidden);
 	SelectionWidgetInstance->MaterialBox->SetVisibility(ESlateVisibility::Hidden);
 	SelectionWidgetInstance->TextureBox->SetVisibility(ESlateVisibility::Hidden);
+	bIsVissible = false;
 }
 
 void AInteractiveArchController::ShowMeshTextureWidget() {
@@ -129,32 +150,6 @@ void AInteractiveArchController::ShowMeshTextureWidget() {
 
 void AInteractiveArchController::SpawnActor(const FMeshData& MeshData)
 {
-	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Emerald, FString::Printf(TEXT("Spwan")));
-	//FActorSpawnParameters SpawnParams;
-	//SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-	//FRotator Rotation = FRotator::ZeroRotator;
-	///*SelectionWidgetInstance->MaterialBox->SetVisibility(ESlateVisibility::Visible);
-	//SelectionWidgetInstance->TextureBox->SetVisibility(ESlateVisibility::Visible);*/
-	//LastHitLocation = LastHitLocation;
-	//	 StaticMeshActor=GetWorld()->SpawnActor<AArchMeshActor>(AArchMeshActor::StaticClass(), LastHitLocation, Rotation, SpawnParams);
-	//	 if (StaticMeshActor) {
-	//		 StaticMeshActor->SetMobility(EComponentMobility::Movable);
-	//		 StaticMeshActor->GetStaticMeshComponent()->SetStaticMesh(MeshData.Type);
-	//	 }
-
-	/*if (!bMyActor) {
-		StaticMeshActor->Destroy();
-	}
-	else {
-		StaticMeshActor = GetWorld()->SpawnActor<AArchMeshActor>(AArchMeshActor::StaticClass(), HitLocation, Rotation, SpawnParams);
-	}*/
-	/*if (StaticMeshActor) {
-		StaticMeshActor->setmobility(ecomponentmobility::movable);
-		StaticMeshActor->static()->setstaticmesh(MeshData.Type);
-	}*/
-	//bMyActor = false;*
-
 
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Emerald, FString::Printf(TEXT("Spawn")));
 
@@ -164,18 +159,19 @@ void AInteractiveArchController::SpawnActor(const FMeshData& MeshData)
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("LastHitLocation is invalid!"));
 		return;
 	}
-
-	ShowMeshTextureWidget();
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	if (bIsMeshPresent)
+	{
+		StaticMeshActor->Destroy();
+		StaticMeshActor = GetWorld()->SpawnActor<AArchMeshActor>(AArchMeshActor::StaticClass(), LastHitLocation, FRotator::ZeroRotator, SpawnParams);
+		bIsMeshPresent = false;
+	}
+	else
+	{
+		StaticMeshActor = GetWorld()->SpawnActor<AArchMeshActor>(AArchMeshActor::StaticClass(), LastHitLocation, FRotator::ZeroRotator, SpawnParams);
+	}
 
-	
-	FRotator Rotation = FRotator::ZeroRotator;
-
-	
-	StaticMeshActor = GetWorld()->SpawnActor<AArchMeshActor>(AArchMeshActor::StaticClass(), LastHitLocation, Rotation, SpawnParams);
-
-	
 	if (StaticMeshActor)
 	{
 		

@@ -53,10 +53,14 @@ private:
 	UPROPERTY()
 	UOverlayWidget* SelectionWidgetInstance;
 
+	/*UPROPERTY()
+	UMaterialInstanceDynamic* DynamicMaterial;*/
+
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<UOverlayWidget> SelectionWidget;
 
 	bool bIsVissible;
+	bool bIsMeshPresent=false;
 public:
 	UPROPERTY(EditAnywhere)
 	AArchMeshActor* StaticMeshActor;
