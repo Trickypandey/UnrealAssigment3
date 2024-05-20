@@ -69,11 +69,8 @@ void AInteractiveArchController::BeginPlay()
 	Super::BeginPlay();
 	const FVector Location = FVector::ZeroVector; 
 	const FRotator SpawnRotation = FRotator::ZeroRotator; 
-
-	
-	
-
 	SetupInputBindings();
+	SwitchPawn();
 	
 }
 
@@ -107,7 +104,11 @@ void AInteractiveArchController::LeftClickProcessor()
 					}
 
 					if (AArchMeshActor* ArchActor = Cast<AArchMeshActor>(HitResult.GetActor())) {
-						
+							if(PawnIndex-1 == 1)
+							{
+								
+								GetPawn()->SetActorLocation(LastHitLocation);
+							}
 						bIsMeshPresent = true;
 						StaticMeshActor = ArchActor;
 						LastHitLocation = StaticMeshActor->GetActorLocation();
@@ -170,21 +171,18 @@ void AInteractiveArchController::SwitchPawn()
 		PreviousPawnLocation = CurrentPawn->GetActorLocation();
 		CurrentPawn->Destroy();
 	}
-	// Spawn the new pawn at the location of the previous one
+
 	APawn* NewPawn = World->SpawnActor<APawn>(PawnClass, PreviousPawnLocation  + FVector(0,0,100), FRotator::ZeroRotator, SpawnParams);
 	if (!NewPawn)
 	{
 		return;
 	}
 
-	// Destroy the previous pawn if it exists
-
-	// Store reference to the new pawn
 	CurrentPawn = NewPawn;
-	// Possess the new pawn
+
 	Possess(CurrentPawn);
 
-	// Add the mapping context if a subsystem exists
+
 	if (UEnhancedInputLocalPlayerSubsystem* SubSystem = GetLocalPlayer()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
 	{
 		SubSystem->AddMappingContext(MappingContext, 0);
@@ -226,13 +224,21 @@ void AInteractiveArchController::SpawnActor(const FMeshData& MeshData)
 	{
 		StaticMeshActor->Destroy();
 		StaticMeshActor = GetWorld()->SpawnActor<AArchMeshActor>(AArchMeshActor::StaticClass(), LastHitLocation, FRotator::ZeroRotator, SpawnParams);
-		GetPawn()->SetActorLocation(LastHitLocation);
+		if (PawnIndex -1== 1)
+		{
+
+			GetPawn()->SetActorLocation(LastHitLocation);
+		}
 		bIsMeshPresent = false;
 	}
 	else
 	{
 		StaticMeshActor = GetWorld()->SpawnActor<AArchMeshActor>(AArchMeshActor::StaticClass(), LastHitLocation, FRotator::ZeroRotator, SpawnParams);
-		GetPawn()->SetActorLocation(LastHitLocation);
+		if (PawnIndex -1== 1)
+		{
+
+			GetPawn()->SetActorLocation(LastHitLocation);
+		}
 	}
 
 	if (StaticMeshActor)
