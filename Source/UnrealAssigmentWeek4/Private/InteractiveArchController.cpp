@@ -104,6 +104,7 @@ void AInteractiveArchController::LeftClickProcessor()
 					}
 
 					if (AArchMeshActor* ArchActor = Cast<AArchMeshActor>(HitResult.GetActor())) {
+						
 							if(PawnIndex-1 == 1)
 							{
 								
@@ -119,17 +120,15 @@ void AInteractiveArchController::LeftClickProcessor()
 					}
 					else
 					{
+						GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT(" not an actor"));
 						bIsMeshPresent = false;
 					}
 					if (!bIsVisible)
 					{
 						SelectionWidgetInstance->MeshBox->SetVisibility(ESlateVisibility::Visible);
 						bIsVisible = true;
-						
-					}
 
-					
-					//OnFLoorDetected();
+					}
 				}
 			}
 		}
@@ -224,16 +223,16 @@ void AInteractiveArchController::SpawnActor(const FMeshData& MeshData)
 	{
 		StaticMeshActor->Destroy();
 		StaticMeshActor = GetWorld()->SpawnActor<AArchMeshActor>(AArchMeshActor::StaticClass(), LastHitLocation, FRotator::ZeroRotator, SpawnParams);
-		if (PawnIndex -1== 1)
+		if (PawnIndex - 1 == 1)
 		{
 
 			GetPawn()->SetActorLocation(LastHitLocation);
 		}
-		bIsMeshPresent = false;
 	}
 	else
 	{
 		StaticMeshActor = GetWorld()->SpawnActor<AArchMeshActor>(AArchMeshActor::StaticClass(), LastHitLocation, FRotator::ZeroRotator, SpawnParams);
+		bIsMeshPresent = true;
 		if (PawnIndex -1== 1)
 		{
 
