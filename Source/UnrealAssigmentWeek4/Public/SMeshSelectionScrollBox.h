@@ -31,9 +31,7 @@ public:
 
 private:
 	TSharedPtr<SScrollBox> ScrollBox;
-	TSharedPtr<SScrollBox> MaterialVerticalScrollBox;
-	TSharedPtr<SScrollBox> TextureVerticalScrollBox;
-	TSharedPtr<SScrollBox> MeshHorizontalScrollBox;
+
 
 
 	//TSharedPtr<STextBlock> TextBox;

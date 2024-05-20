@@ -25,16 +25,20 @@ public:
 	void SetMaterial(const FMaterialData& MeshData);
 	UFUNCTION()
 	void SetTexture(const FTextureData& MeshData);
+	void BindWidgetEvents();
+	void SetupInputBindings();
 	virtual void BeginPlay() override;
 
 	void LeftClickProcessor();
+	void SwitchPawn();
 	void HideVisibility();
-	void ShowMeshTextureWidget();
-	void HideVisiblity();
+	void ShowMeshTextureWidget() const;
+	
 
 	UFUNCTION()
 	void SpawnActor(const FMeshData& MeshData);
 protected:
+	void SetupEnhancedInputBindings();
 	virtual void SetupInputComponent() override;
 
 private:
@@ -43,6 +47,9 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Controller")
 	UInputAction* OnTabClick;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Controller")
+	UInputAction* OnSwitchPawn;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Controller")
 	UInputMappingContext* MappingContext;
@@ -59,9 +66,15 @@ private:
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<UOverlayWidget> SelectionWidget;
 
-	bool bIsVissible;
+	bool bIsVisible;
 	bool bIsMeshPresent=false;
+	int32 PawnIndex = 0;
+
+	TArray<TSubclassOf<APawn>> Pawns;
 public:
 	UPROPERTY(EditAnywhere)
 	AArchMeshActor* StaticMeshActor;
+
+	UPROPERTY(EditAnywhere)
+	APawn* CurrentPawn;
 };
