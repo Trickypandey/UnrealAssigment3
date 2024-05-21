@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ArchMeshActor.h"
+#include "AWallSpline.h"
 #include "GameFramework/PlayerController.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
@@ -52,7 +53,19 @@ private:
 	UInputAction* OnSwitchPawn;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Controller")
+	UInputAction* OnSwitchMode;
+
+	UPROPERTY(EditDefaultsOnly, Category = "WallController")
+	UInputAction* OnAddSplinePoints;
+
+	UPROPERTY(EditDefaultsOnly, Category = "WallController")
+	UInputAction* OnCreateNewSpline;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Controller")
 	UInputMappingContext* MappingContext;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Controller")
+	UInputMappingContext* WallSplineMappingContext;
 
 	UPROPERTY()
 	FVector LastHitLocation;
@@ -71,10 +84,29 @@ private:
 	int32 PawnIndex = 0;
 
 	TArray<TSubclassOf<APawn>> Pawns;
+	bool bWallCreationMode ;
+	UPROPERTY(EditDefaultsOnly, Category = "WallController")
+	int32 SplineIndex;;
+
 public:
 	UPROPERTY(EditAnywhere)
 	AArchMeshActor* StaticMeshActor;
 
 	UPROPERTY(EditAnywhere)
 	APawn* CurrentPawn;
+
+	UPROPERTY(EditDefaultsOnly, Category = "WallController")
+	TArray<AAWallSpline*> ArrayOfSplines;
+
+	UFUNCTION(BlueprintCallable, Category = "WallController")
+	void GenerateWall();
+
+	UFUNCTION(BlueprintCallable, Category = "WallController")
+	void NewSpline();
+
+	UFUNCTION()
+	void ChangeMode();
+
+	UFUNCTION()
+	void AddCurrentModeMappingContext();
 };

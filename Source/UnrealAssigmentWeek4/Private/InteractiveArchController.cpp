@@ -3,16 +3,20 @@
 
 #include "InteractiveArchController.h"
 
+#include <optional>
+
 #include "ArchMeshActor.h"
 #include "IsometricView.h"
 #include "OrthographicView.h"
 #include "PerspectiveView.h"
+#include "Components/SplineComponent.h"
 
 AInteractiveArchController::AInteractiveArchController()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	bShowMouseCursor = true;
 	bIsVisible = false;
+	bWallCreationMode = false;
 	Pawns.Add(CreateDefaultSubobject<APerspectiveView>(TEXT("PerspectivePawn"))->GetClass());
 	Pawns.Add(CreateDefaultSubobject<AIsometricView>(TEXT("IsometricPawn"))->GetClass());
 	Pawns.Add(CreateDefaultSubobject<AOrthographicView>(TEXT("OrthographicPawn"))->GetClass());
@@ -182,10 +186,7 @@ void AInteractiveArchController::SwitchPawn()
 	Possess(CurrentPawn);
 
 
-	if (UEnhancedInputLocalPlayerSubsystem* SubSystem = GetLocalPlayer()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
-	{
-		SubSystem->AddMappingContext(MappingContext, 0);
-	}
+	AddCurrentModeMappingContext();
 
 	// Increment pawn index for the next switch
 	PawnIndex++;
@@ -248,7 +249,7 @@ void AInteractiveArchController::SpawnActor(const FMeshData& MeshData)
 	}
 	else
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Failed to spawn actor!"));
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Failed to spawn actor!"));
 	}
 
 }
@@ -258,6 +259,7 @@ void AInteractiveArchController::SetupEnhancedInputBindings()
 	UEnhancedInputComponent* Eic = Cast<UEnhancedInputComponent>(InputComponent);
 
 	MappingContext = NewObject<UInputMappingContext>(this);
+	WallSplineMappingContext = NewObject<UInputMappingContext>(this);
 
 	OnLeftClick = NewObject<UInputAction>(this);
 	OnLeftClick->ValueType = EInputActionValueType::Boolean;
@@ -268,7 +270,19 @@ void AInteractiveArchController::SetupEnhancedInputBindings()
 	OnSwitchPawn = NewObject<UInputAction>(this);
 	OnSwitchPawn->ValueType = EInputActionValueType::Boolean;
 
+	OnSwitchMode = NewObject<UInputAction>(this);
+	OnSwitchMode->ValueType = EInputActionValueType::Boolean;
+
+	OnAddSplinePoints = NewObject<UInputAction>(this);
+	OnAddSplinePoints->ValueType = EInputActionValueType::Boolean;
+
+	OnCreateNewSpline = NewObject<UInputAction>(this);
+	OnCreateNewSpline->ValueType = EInputActionValueType::Boolean;
+
 	check(Eic)
+		Eic->BindAction(OnSwitchMode, ETriggerEvent::Completed, this, &AInteractiveArchController::ChangeMode);
+		Eic->BindAction(OnAddSplinePoints, ETriggerEvent::Completed, this, &AInteractiveArchController::GenerateWall);
+		Eic->BindAction(OnCreateNewSpline, ETriggerEvent::Completed, this, &AInteractiveArchController::NewSpline);
 		Eic->BindAction(OnLeftClick, ETriggerEvent::Completed, this, &AInteractiveArchController::LeftClickProcessor);
 		Eic->BindAction(OnTabClick, ETriggerEvent::Completed, this, &AInteractiveArchController::HideVisibility);
 		Eic->BindAction(OnSwitchPawn, ETriggerEvent::Completed, this, &AInteractiveArchController::SwitchPawn);
@@ -277,12 +291,114 @@ void AInteractiveArchController::SetupEnhancedInputBindings()
 		MappingContext->MapKey(OnLeftClick, EKeys::LeftMouseButton);
 		MappingContext->MapKey(OnTabClick, EKeys::Tab);
 		MappingContext->MapKey(OnSwitchPawn, EKeys::P);
+		MappingContext->MapKey(OnSwitchMode, EKeys::C);
+
+		WallSplineMappingContext->MapKey(OnSwitchMode, EKeys::C);
+		WallSplineMappingContext->MapKey(OnSwitchPawn, EKeys::P);
+		WallSplineMappingContext->MapKey(OnAddSplinePoints, EKeys::LeftMouseButton);
+		WallSplineMappingContext->MapKey(OnCreateNewSpline, EKeys::RightMouseButton);
 
 	}
 
-	if (UEnhancedInputLocalPlayerSubsystem* SubSystem = GetLocalPlayer()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+	AddCurrentModeMappingContext();
+}
+
+
+void AInteractiveArchController::GenerateWall()
+{
+	if (ArrayOfSplines.Num() != 0 && bWallCreationMode) {
+		FHitResult HitonClick;
+		GetHitResultUnderCursor(ECC_Visibility, true, HitonClick);
+		if (HitonClick.bBlockingHit)
+		{
+			FVector ClickLocation = HitonClick.Location;
+			ArrayOfSplines[SplineIndex]->AddSplinePoint(ClickLocation);
+
+			if (ArrayOfSplines[SplineIndex]->SplineComponent->GetNumberOfSplinePoints() >= 2) {
+				FString Msg = "On Spline " + FString::FromInt(SplineIndex + 1) + " Wall " + FString::FromInt(ArrayOfSplines[SplineIndex]->SplineComponent->GetNumberOfSplinePoints() - 1) + " Generated";
+				//Message.ExecuteIfBound(Msg);
+				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, Msg);
+
+			}
+		}
+	}
+	else {
+		FString Msg = "Right Click To Generate Spline or click c to change the mode";
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, Msg);
+		//Message.ExecuteIfBound(Msg);
+	}
+
+
+}
+
+void AInteractiveArchController::NewSpline()
+{
+	if (bWallCreationMode) {
+		if (ArrayOfSplines.Num() > 0 && bWallCreationMode) {
+			if (ArrayOfSplines[ArrayOfSplines.Num() - 1]->SplineComponent->GetNumberOfSplinePoints() >= 2) {
+				AAWallSpline* Spline = GetWorld()->SpawnActor<AAWallSpline>(AAWallSpline::StaticClass());
+				ArrayOfSplines.Add(Spline);
+				SplineIndex = ArrayOfSplines.Num() - 1;
+
+				FString Msg = "New Spline " + FString::FromInt(SplineIndex + 1) + " Generated";
+				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, Msg);
+				//Message.ExecuteIfBound(Msg);
+
+			}
+			else {
+				FString Msg = "At least create a wall before creating a new spline";
+				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, Msg);
+				//Message.ExecuteIfBound(Msg);
+
+			}
+		}
+		else {
+			AAWallSpline* Spline = GetWorld()->SpawnActor<AAWallSpline>(AAWallSpline::StaticClass());
+			ArrayOfSplines.Add(Spline);
+			SplineIndex = ArrayOfSplines.Num() - 1;
+
+			FString Msg = "New Wall Spline " + FString::FromInt(SplineIndex + 1) + " Generated";
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, Msg);
+			//Message.ExecuteIfBound(Msg);
+
+		}
+	}
+	else
 	{
-		SubSystem->AddMappingContext(MappingContext, 0);
+		FString Msg = "Your are Not In Wall Creation Mode click c to change the mode";
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, Msg);
+		//Message.ExecuteIfBound(Msg);
+	}
+}
+
+void AInteractiveArchController::ChangeMode()
+{
+	bWallCreationMode = !bWallCreationMode;
+	if (bWallCreationMode) {HideVisibility();}
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("MOde Change"));
+	AddCurrentModeMappingContext();
+
+}
+
+void AInteractiveArchController::AddCurrentModeMappingContext()
+{
+	auto* SubSystem = GetLocalPlayer()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+	if (!SubSystem)
+	{
+		return;
+	}
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Context Change"));
+
+	std::optional<UInputMappingContext*> ContextToRemove = bWallCreationMode ? MappingContext : WallSplineMappingContext;
+	std::optional<UInputMappingContext*> ContextToAdd = bWallCreationMode ? WallSplineMappingContext : MappingContext;
+
+	if (ContextToRemove)
+	{
+		SubSystem->RemoveMappingContext(*ContextToRemove);
+	}
+	if (ContextToAdd)
+	{
+		SubSystem->AddMappingContext(*ContextToAdd, 0);
 	}
 }
 
