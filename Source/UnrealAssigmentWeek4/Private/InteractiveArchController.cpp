@@ -11,34 +11,48 @@
 #include "PerspectiveView.h"
 #include "Components/SplineComponent.h"
 
+
+
+namespace
+{
+	const FName PerspectivePawnName(TEXT("PerspectivePawn"));
+	const FName IsometricPawnName(TEXT("IsometricPawn"));
+	const FName OrthographicPawnName(TEXT("OrthographicPawn"));
+
+	void DebugMessage(const FString& Message, float Duration = 5.f, FColor Color = FColor::Emerald)
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, Duration, Color, Message);
+		}
+	}
+}
+
 AInteractiveArchController::AInteractiveArchController()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	bShowMouseCursor = true;
 	bIsVisible = false;
 	bWallCreationMode = false;
-	Pawns.Add(CreateDefaultSubobject<APerspectiveView>(TEXT("PerspectivePawn"))->GetClass());
-	Pawns.Add(CreateDefaultSubobject<AIsometricView>(TEXT("IsometricPawn"))->GetClass());
-	Pawns.Add(CreateDefaultSubobject<AOrthographicView>(TEXT("OrthographicPawn"))->GetClass());
-
+	Pawns.Add(CreateDefaultSubobject<APerspectiveView>(PerspectivePawnName)->GetClass());
+	Pawns.Add(CreateDefaultSubobject<AIsometricView>(IsometricPawnName)->GetClass());
+	Pawns.Add(CreateDefaultSubobject<AOrthographicView>(OrthographicPawnName)->GetClass());
 }
 
 void AInteractiveArchController::SetMaterial(const FMaterialData& MeshData)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Emerald, FString::Printf(TEXT("Material")));
+	DebugMessage(TEXT("Material"));
 	StaticMeshActor->GetStaticMeshComponent()->SetMaterial(0, MeshData.Type);
 }
 
 void AInteractiveArchController::SetTexture(const FTextureData& MeshData)
 {
 	UMaterialInstanceDynamic* DynamicMaterial = StaticMeshActor->GetStaticMeshComponent()->CreateAndSetMaterialInstanceDynamic(0);
-	if(DynamicMaterial)
+	if (DynamicMaterial)
 	{
-		// Set the texture parameter of the material
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Emerald, FString::Printf(TEXT("Texture")));
+		DebugMessage(TEXT("Texture"));
 		DynamicMaterial->SetTextureParameterValue(TEXT("TextureParameterName"), MeshData.Type);
 	}
-
 }
 
 
@@ -61,7 +75,6 @@ void AInteractiveArchController::SetupInputBindings()
 		if (SelectionWidgetInstance)
 		{
 			SelectionWidgetInstance->AddToViewport();
-			// Bind widget events
 			BindWidgetEvents();
 			HideVisibility();
 		}
@@ -71,11 +84,8 @@ void AInteractiveArchController::SetupInputBindings()
 void AInteractiveArchController::BeginPlay()
 {
 	Super::BeginPlay();
-	const FVector Location = FVector::ZeroVector; 
-	const FRotator SpawnRotation = FRotator::ZeroRotator; 
 	SetupInputBindings();
 	SwitchPawn();
-	
 }
 
 
@@ -103,28 +113,31 @@ void AInteractiveArchController::LeftClickProcessor()
 				if (HitResult.GetActor()) {
 					LastHitLocation = HitResult.Location;
 					if (SelectionWidgetInstance && !SelectionWidgetInstance->IsInViewport()) {
-						GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Emerald, FString::Printf(TEXT("Clicked")));
+						DebugMessage(TEXT("Clicked"));
 						SelectionWidgetInstance->AddToViewport();
 					}
 
 					if (AArchMeshActor* ArchActor = Cast<AArchMeshActor>(HitResult.GetActor())) {
 						
-							if(PawnIndex-1 == 1)
-							{
-								
-								GetPawn()->SetActorLocation(LastHitLocation);
-							}
+						if(PawnIndex-1 == 1)
+						{
+							
+							GetPawn()->SetActorLocation(LastHitLocation);
+						}
 						bIsMeshPresent = true;
 						StaticMeshActor = ArchActor;
 						LastHitLocation = StaticMeshActor->GetActorLocation();
-						GEngine->AddOnScreenDebugMessage(-1, 2, FColor::Blue, "Actor");
+
+						DebugMessage(TEXT("Actor"), 2, FColor::Blue);
+
+
 						SelectionWidgetInstance->MeshBox->SetVisibility(ESlateVisibility::Visible);
 						SelectionWidgetInstance->MaterialBox->SetVisibility(ESlateVisibility::Visible);
 						SelectionWidgetInstance->TextureBox->SetVisibility(ESlateVisibility::Visible);
 					}
 					else
 					{
-						GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT(" not an actor"));
+						DebugMessage(TEXT("Not an actor"), 5, FColor::Red);
 						bIsMeshPresent = false;
 					}
 					if (!bIsVisible)
@@ -142,7 +155,8 @@ void AInteractiveArchController::LeftClickProcessor()
 
 void AInteractiveArchController::SwitchPawn()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Emerald, FString::Printf(TEXT("Clicked %d"), PawnIndex));
+	DebugMessage(FString::Printf(TEXT("Clicked %d"), PawnIndex));
+
 	if (Pawns.Num() == 0)
 	{
 		return;
@@ -249,7 +263,7 @@ void AInteractiveArchController::SpawnActor(const FMeshData& MeshData)
 	}
 	else
 	{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Failed to spawn actor!"));
+		DebugMessage(TEXT("Failed to spawn actor!"), 5, FColor::Red);
 	}
 
 }
@@ -306,99 +320,75 @@ void AInteractiveArchController::SetupEnhancedInputBindings()
 
 void AInteractiveArchController::GenerateWall()
 {
-	if (ArrayOfSplines.Num() != 0 && bWallCreationMode) {
-		FHitResult HitonClick;
-		GetHitResultUnderCursor(ECC_Visibility, true, HitonClick);
-		if (HitonClick.bBlockingHit)
+	if (!bWallCreationMode || ArrayOfSplines.Num() == 0)
+	{
+		DebugMessage(TEXT("Right Click To Generate Spline or click c to change the mode"), 5, FColor::Red);
+		return;
+	}
+
+	FHitResult HitonClick;
+	GetHitResultUnderCursor(ECC_Visibility, true, HitonClick);
+	if (HitonClick.bBlockingHit)
+	{
+		FVector ClickLocation = HitonClick.Location;
+		ArrayOfSplines[SplineIndex]->AddSplinePoint(ClickLocation);
+
+		if (ArrayOfSplines[SplineIndex]->SplineComponent->GetNumberOfSplinePoints() >= 2)
 		{
-			FVector ClickLocation = HitonClick.Location;
-			ArrayOfSplines[SplineIndex]->AddSplinePoint(ClickLocation);
-
-			if (ArrayOfSplines[SplineIndex]->SplineComponent->GetNumberOfSplinePoints() >= 2) {
-				FString Msg = "On Spline " + FString::FromInt(SplineIndex + 1) + " Wall " + FString::FromInt(ArrayOfSplines[SplineIndex]->SplineComponent->GetNumberOfSplinePoints() - 1) + " Generated";
-				//Message.ExecuteIfBound(Msg);
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, Msg);
-
-			}
+			DebugMessage(FString::Printf(TEXT("On Spline %d Wall %d Generated"), SplineIndex + 1, ArrayOfSplines[SplineIndex]->SplineComponent->GetNumberOfSplinePoints() - 1), 5, FColor::Red);
 		}
 	}
-	else {
-		FString Msg = "Right Click To Generate Spline or click c to change the mode";
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, Msg);
-		//Message.ExecuteIfBound(Msg);
-	}
-
-
 }
 
 void AInteractiveArchController::NewSpline()
 {
-	if (bWallCreationMode) {
-		if (ArrayOfSplines.Num() > 0 && bWallCreationMode) {
-			if (ArrayOfSplines[ArrayOfSplines.Num() - 1]->SplineComponent->GetNumberOfSplinePoints() >= 2) {
-				AAWallSpline* Spline = GetWorld()->SpawnActor<AAWallSpline>(AAWallSpline::StaticClass());
-				ArrayOfSplines.Add(Spline);
-				SplineIndex = ArrayOfSplines.Num() - 1;
-
-				FString Msg = "New Spline " + FString::FromInt(SplineIndex + 1) + " Generated";
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, Msg);
-				//Message.ExecuteIfBound(Msg);
-
-			}
-			else {
-				FString Msg = "At least create a wall before creating a new spline";
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, Msg);
-				//Message.ExecuteIfBound(Msg);
-
-			}
-		}
-		else {
-			AAWallSpline* Spline = GetWorld()->SpawnActor<AAWallSpline>(AAWallSpline::StaticClass());
-			ArrayOfSplines.Add(Spline);
-			SplineIndex = ArrayOfSplines.Num() - 1;
-
-			FString Msg = "New Wall Spline " + FString::FromInt(SplineIndex + 1) + " Generated";
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, Msg);
-			//Message.ExecuteIfBound(Msg);
-
-		}
-	}
-	else
+	if (!bWallCreationMode)
 	{
-		FString Msg = "Your are Not In Wall Creation Mode click c to change the mode";
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, Msg);
-		//Message.ExecuteIfBound(Msg);
+		DebugMessage(TEXT("You are Not In Wall Creation Mode. Click C to change the mode"), 5, FColor::Red);
+		return;
 	}
+
+	if (ArrayOfSplines.Num() > 0 && ArrayOfSplines.Last()->SplineComponent->GetNumberOfSplinePoints() < 2)
+	{
+		DebugMessage(TEXT("At least create a wall before creating a new spline"), 5, FColor::Red);
+		return;
+	}
+
+	AAWallSpline* Spline = GetWorld()->SpawnActor<AAWallSpline>(AAWallSpline::StaticClass());
+	ArrayOfSplines.Add(Spline);
+	SplineIndex = ArrayOfSplines.Num() - 1;
+	DebugMessage(FString::Printf(TEXT("New Spline %d Generated"), SplineIndex + 1), 5, FColor::Red);
 }
 
 void AInteractiveArchController::ChangeMode()
 {
 	bWallCreationMode = !bWallCreationMode;
 	if (bWallCreationMode) {HideVisibility();}
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("MOde Change"));
+	DebugMessage(TEXT("Mode Change"), 5, FColor::Red);
+
 	AddCurrentModeMappingContext();
 
 }
 
-void AInteractiveArchController::AddCurrentModeMappingContext()
+void AInteractiveArchController::AddCurrentModeMappingContext() const
 {
 	auto* SubSystem = GetLocalPlayer()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
-	if (!SubSystem)
+	if (!SubSystem)		
 	{
 		return;
 	}
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Context Change"));
+	DebugMessage(TEXT("Context Change"), 5, FColor::Red);
 
-	std::optional<UInputMappingContext*> ContextToRemove = bWallCreationMode ? MappingContext : WallSplineMappingContext;
-	std::optional<UInputMappingContext*> ContextToAdd = bWallCreationMode ? WallSplineMappingContext : MappingContext;
+	UInputMappingContext* ContextToRemove = bWallCreationMode ? MappingContext : WallSplineMappingContext;
+	UInputMappingContext* ContextToAdd = bWallCreationMode ? WallSplineMappingContext : MappingContext;
 
 	if (ContextToRemove)
 	{
-		SubSystem->RemoveMappingContext(*ContextToRemove);
+		SubSystem->RemoveMappingContext(ContextToRemove);
 	}
 	if (ContextToAdd)
 	{
-		SubSystem->AddMappingContext(*ContextToAdd, 0);
+		SubSystem->AddMappingContext(ContextToAdd, 0);
 	}
 }
 

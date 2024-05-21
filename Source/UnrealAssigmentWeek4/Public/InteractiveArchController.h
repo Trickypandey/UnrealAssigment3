@@ -108,5 +108,5 @@ public:
 	void ChangeMode();
 
 	UFUNCTION()
-	void AddCurrentModeMappingContext();
+	void AddCurrentModeMappingContext() const;
 };
